@@ -65,13 +65,13 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
                 callback.invoke(null, "PORTRAIT");
                 break;
             case Surface.ROTATION_90:
-                callback.invoke( null,  "LANDSCAPE-LEFT");
+                callback.invoke( null,  "LANDSCAPE-RIGHT");
                 break;
             case Surface.ROTATION_180:
                 callback.invoke(null, "PORTRAITUPSIDEDOWN");
                 break;
             default:
-                callback.invoke(null, "LANDSCAPE-RIGHT");
+                callback.invoke(null, "LANDSCAPE-LEFT");
                 break;
         }
     }
