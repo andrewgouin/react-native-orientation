@@ -8,6 +8,9 @@ import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.util.Log;
+import android.view.OrientationEventListener;
+import android.view.Surface;
+import android.view.WindowManager;
 
 import com.facebook.common.logging.FLog;
 import com.facebook.react.bridge.Arguments;
@@ -27,10 +30,32 @@ import javax.annotation.Nullable;
 
 public class OrientationModule extends ReactContextBaseJavaModule implements LifecycleEventListener{
     final BroadcastReceiver receiver;
+    OrientationEventListener eventListener;
+    String lastOrientation;
+    int currentRotation = 0;
 
     public OrientationModule(ReactApplicationContext reactContext) {
         super(reactContext);
         final ReactApplicationContext ctx = reactContext;
+        if (eventListener != null) eventListener.disable();
+        eventListener = new OrientationEventListener(reactContext) {
+            @Override
+            public void onOrientationChanged(int i) {
+                currentRotation = i;
+                String specificOrientation = getSpecificOrientationString(currentRotation);
+                if (!specificOrientation.equals(lastOrientation)) {
+                    lastOrientation = specificOrientation;
+                    WritableMap specificParams = Arguments.createMap();
+                    specificParams.putString("specificOrientation", specificOrientation);
+                    if (ctx.hasActiveCatalystInstance()) {
+                        ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("specificOrientationDidChange", specificParams);
+                    }
+                }
+
+            }
+        };
+        eventListener.enable();
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -46,6 +71,7 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
                     ctx
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                     .emit("orientationDidChange", params);
+
                 }
             }
         };
@@ -57,25 +83,21 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
         return "Orientation";
     }
 
-     @ReactMethod
-    public void getSpecificOrientation(Callback callback){
-        final int rotation = ((WindowManager) getReactApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getOrientation();
-        switch (rotation) {
-            case Surface.ROTATION_0:
-                callback.invoke(null, "PORTRAIT");
-                break;
-            case Surface.ROTATION_90:
-                callback.invoke( null,  "LANDSCAPE-LEFT");
-                break;
-            case Surface.ROTATION_180:
-                callback.invoke(null, "PORTRAITUPSIDEDOWN");
-                break;
-            default:
-                callback.invoke(null, "LANDSCAPE-RIGHT");
-                break;
+    private String getSpecificOrientationString(int rotation) {
+        if (rotation < 45 || rotation > 315) {
+            return "PORTRAIT";
+        } else if (rotation > 180) {
+            return "LANDSCAPE-LEFT";
+        } else {
+            return "LANDSCAPE-RIGHT";
         }
     }
-    
+
+    @ReactMethod
+    public void getSpecificOrientation(Callback callback){
+        callback.invoke(null, getSpecificOrientationString(currentRotation));
+    }
+
     @ReactMethod
     public void getOrientation(Callback callback) {
         final int orientationInt = getReactApplicationContext().getResources().getConfiguration().orientation;
@@ -169,7 +191,7 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
             FLog.e(ReactConstants.TAG, "no activity to register receiver");
             return;
         }
-        activity.registerReceiver(receiver, new IntentFilter("onConfigurationChanged"));
+        activity.registerReceiver(receiver, new IntentFilter("android.intent.action.CONFIGURATION_CHANGED"));
     }
     @Override
     public void onHostPause() {
