@@ -29,7 +29,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class OrientationModule extends ReactContextBaseJavaModule implements LifecycleEventListener{
-    final BroadcastReceiver receiver;
     OrientationEventListener eventListener;
     String lastOrientation;
     int currentRotation = 0;
@@ -56,25 +55,6 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
             }
         };
         eventListener.enable();
-
-        receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Configuration newConfig = intent.getParcelableExtra("newConfig");
-                Log.d("receiver", String.valueOf(newConfig.orientation));
-
-                String orientationValue = newConfig.orientation == 1 ? "PORTRAIT" : "LANDSCAPE";
-
-                WritableMap params = Arguments.createMap();
-                params.putString("orientation", orientationValue);
-                if (ctx.hasActiveCatalystInstance()) {
-                    ctx
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                    .emit("orientationDidChange", params);
-
-                }
-            }
-        };
         ctx.addLifecycleEventListener(this);
     }
 
@@ -185,29 +165,15 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
 
     @Override
     public void onHostResume() {
-        final Activity activity = getCurrentActivity();
 
-        if (activity == null) {
-            FLog.e(ReactConstants.TAG, "no activity to register receiver");
-            return;
-        }
-        activity.registerReceiver(receiver, new IntentFilter("android.intent.action.CONFIGURATION_CHANGED"));
     }
     @Override
     public void onHostPause() {
-        final Activity activity = getCurrentActivity();
-        if (activity == null) return;
-        try
-        {
-            activity.unregisterReceiver(receiver);
-        }
-        catch (java.lang.IllegalArgumentException e) {
-            FLog.e(ReactConstants.TAG, "receiver already unregistered", e);
-        }
+      
     }
 
     @Override
     public void onHostDestroy() {
 
-        }
     }
+}
